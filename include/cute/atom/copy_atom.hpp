@@ -176,7 +176,23 @@ struct TiledCopy : Copy_Atom
     CUTE_STATIC_ASSERT_V(rank(stensor) >= rank(Tiler_MN{}), "Rank of tensor to be partitioned too small.");
 
     // Tile the stensor and compute the (src-thr, src-val) -> (ref-thr, ref-val) layout
-    return tile2thrfrg(zipped_divide(stensor,Tiler_MN{}), right_inverse(AtomLayoutRef{}).compose(AtomLayoutSrc{}));
+    auto zipped_out = zipped_divide(stensor,Tiler_MN{});
+    auto out_layout = right_inverse(AtomLayoutRef{}).compose(AtomLayoutSrc{});
+    auto out = tile2thrfrg(zipped_out, out_layout);
+
+#ifdef LP_DEBUG
+    if (thread0()) {
+      print("stensor: "); print(stensor); print("\n");
+      print("Tiler_MN{}: "); print(Tiler_MN{}); print("\n");
+      print("zipped_out: "); print(zipped_out); print("\n");
+      print("out_layout: "); print(out_layout); print("\n");
+      print("AtomLayoutSrc{}: "); print(AtomLayoutSrc{}); print("\n");
+      print("AtomLayoutRef{}: "); print(AtomLayoutRef{}); print("\n");
+      print("right_inverse(AtomLayoutRef{}): "); print(right_inverse(AtomLayoutRef{})); print("\n");
+    }
+#endif
+
+    return out;
   }
 
   // Tile a tensor or a layout from shape
@@ -229,6 +245,16 @@ struct TiledCopy : Copy_Atom
     auto tv_tensor = tensor.compose(thrval2mn, _);
     // ((thrid,val),(RestM,RestN,...))
 
+#ifdef LP_DEBUG
+    if (thread0()) {
+      print("tensor: "); print(tensor); print("\n");
+      print("ref2trg: "); print(ref2trg); print("\n");
+      print("atom_layout_TV: "); print(atom_layout_TV); print("\n");
+      print("TiledLayout_TV{}: "); print(TiledLayout_TV{}); print("\n");
+      print("AtomNumThr{}: "); print(AtomNumThr{}); print("\n");
+      print("AtomNumVal{}: "); print(AtomNumVal{}); print("\n");
+    }
+#endif
     // Unfold and return
     return tv_tensor(make_coord(_,_), _);
   }
@@ -352,6 +378,11 @@ struct ThrCopy
     //static_assert(sizeof(typename remove_cvref_t<STensor>::value_type) == sizeof(typename TiledCopy::ValType),
     //              "Expected ValType for tiling SrcTensor.");
     auto thr_tensor = make_tensor(static_cast<STensor&&>(stensor).data(), TiledCopy::tidfrg_S(stensor.layout()));
+#ifdef LP_DEBUG
+    if (thread0()) {
+      print("partition_S thr_tensor: "); print(thr_tensor); print("\n");
+    }
+#endif
     return thr_tensor(thr_idx_, _, repeat<rank_v<STensor>>(_));
   }
 
@@ -362,6 +393,11 @@ struct ThrCopy
     //static_assert(sizeof(typename remove_cvref_t<DTensor>::value_type) == sizeof(typename TiledCopy::ValType),
     //              "Expected ValType for tiling DstTensor.");
     auto thr_tensor = make_tensor(static_cast<DTensor&&>(dtensor).data(), TiledCopy::tidfrg_D(dtensor.layout()));
+#ifdef LP_DEBUG
+    if (thread0()) {
+      print("partition_D thr_tensor: "); print(thr_tensor); print("\n");
+    }
+#endif
     return thr_tensor(thr_idx_, _, repeat<rank_v<DTensor>>(_));
   }
 
@@ -488,12 +524,14 @@ make_tiled_copy(Copy_Atom<Args...> const& copy_atom,
   // (M,N) -> tensor coord
   auto tiler = product_each(shape(layout_mn));
 
-#if 0
-  print("thr_layout: "); print(thr_layout); print("\n");
-  print("val_layout: "); print(val_layout); print("\n");
-  print("layout_mn : "); print(layout_mn);  print("\n");
-  print("layout_tv : "); print(layout_tv);  print("\n");
-  print("tiler     : "); print(tiler);      print("\n");
+#ifdef LP_DEBUG
+  if (thread0()) {
+    print("thr_layout: "); print(thr_layout); print("\n");
+    print("val_layout: "); print(val_layout); print("\n");
+    print("layout_mn : "); print(layout_mn);  print("\n");
+    print("layout_tv : "); print(layout_tv);  print("\n");
+    print("tiler     : "); print(tiler);      print("\n");
+  }
 #endif
 
   return make_tiled_copy_impl(copy_atom, layout_tv, tiler);

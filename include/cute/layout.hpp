@@ -1561,8 +1561,10 @@ raked_product(Layout<TShape,TStride> const& block,
   constexpr int R = cute::max(rank_v<TShape>, rank_v<UShape>);
 
   auto result = logical_product(append<R>(block), append<R>(tiler));
+  auto zip_out = zip(get<1>(result), get<0>(result));
+  auto out = coalesce(zip_out, tuple_repeat<R>(Int<1>{}));
 
-  return coalesce(zip(get<1>(result), get<0>(result)), tuple_repeat<R>(Int<1>{}));
+  return out;
 }
 
 // tile_to_shape -- Perform a product of a layout so that the result matches a target shape.

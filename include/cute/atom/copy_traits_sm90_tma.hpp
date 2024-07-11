@@ -875,6 +875,21 @@ make_tma_copy_desc(Tensor<GEngine,GLayout> const& gtensor,         // The origin
     multicast = new_mult;
   }
 
+#ifdef LP_DEBUG
+  // print("smem_box_shape: \n"); print(smem_box_shape); print("\n");
+      std::cout << "\nformat         " << TMA::to_CUtensorMapDataType<TmaInternalType>()
+                << "\ndim            " << tma_dim
+                << "\ngmem_address   " << gmem_address
+                << "\nglobalDim      " << gmem_prob_shape
+                << "\nglobalStrides  " << gmem_prob_stride
+                << "\nboxDim         " << smem_box_shape
+                << "\nelementStrides " << smem_box_stride
+                << "\ninterleave     " << CU_TENSOR_MAP_INTERLEAVE_NONE
+                << "\nswizzle        " << TMA::to_CUtensorMapSwizzle(get_tma_swizzle_bits(swizzle))
+                << "\nl2Promotion    " << CU_TENSOR_MAP_L2_PROMOTION_L2_128B
+                << "\noobFill        " << CU_TENSOR_MAP_FLOAT_OOB_FILL_NONE << std::endl;
+#endif
+
   assert(smem_box_shape[0] >= (uint32_t(1)));                // Size must be min 1
   assert(smem_box_shape[0] <= (uint32_t(1) << 8));           // Size must be max 2^8 = 256
   assert(smem_box_shape[1] >= (uint32_t(1)));                // Size must be min 1
