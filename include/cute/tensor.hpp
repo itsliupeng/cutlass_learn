@@ -879,6 +879,16 @@ outer_partition(Tensor    && tensor,
   auto tensor_tiled = zipped_divide(static_cast<Tensor&&>(tensor), tiler);
   constexpr int R1 = decltype(rank<1>(tensor_tiled))::value;
 
+
+  #ifdef LP_DEBUG
+    if (thread0()) {
+      print("tensor: "); print(tensor); print("\n");
+      print("tiler: "); print(tiler); print("\n");
+      print("tensor_tiled: "); print(tensor_tiled); print("\n");
+      print("R1: "); print(R1); print("\n");
+    }
+  #endif 
+
   // The coord slices into the first mode (the "tile" mode), flatten the second
   if constexpr (is_tuple<Coord>::value) {
     // Append trailing modes if coord is tuple
@@ -945,6 +955,14 @@ local_partition(Tensor                     && tensor,
                 Index                  const& index)   // index to slice for
 {
   static_assert(is_integral<Index>::value);
+
+
+#ifdef LP_DEBUG
+    if (thread0()) {
+      print("product_each(shape(tile))"); print(product_each(shape(tile))); print("\n");
+      print("tile.get_flat_coord(index)"); print(product_each(tile.get_flat_coord(index))); print("\n");
+    }
+#endif 
   return outer_partition(static_cast<Tensor&&>(tensor),
                          product_each(shape(tile)),
                          tile.get_flat_coord(index));

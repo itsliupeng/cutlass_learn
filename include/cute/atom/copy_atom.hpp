@@ -182,13 +182,16 @@ struct TiledCopy : Copy_Atom
 
 #ifdef LP_DEBUG
     if (thread0()) {
-      print("stensor: "); print(stensor); print("\n");
-      print("Tiler_MN{}: "); print(Tiler_MN{}); print("\n");
-      print("zipped_out: "); print(zipped_out); print("\n");
-      print("out_layout: "); print(out_layout); print("\n");
-      print("AtomLayoutSrc{}: "); print(AtomLayoutSrc{}); print("\n");
-      print("AtomLayoutRef{}: "); print(AtomLayoutRef{}); print("\n");
-      print("right_inverse(AtomLayoutRef{}): "); print(right_inverse(AtomLayoutRef{})); print("\n");
+      print("in tidfrg_S >>>>>\n");
+      print("\tstensor: "); print(stensor); print("\n"); //  (_64,_32):(_32,_1)
+      print("\tTiler_MN{}: "); print(Tiler_MN{}); print("\n"); //  (_64,_32)
+      print("\tzipped_out: "); print(zipped_out); print("\n"); // ((_64,_32),(_1,_1)):((_32,_1),(_0,_0))
+      print("\tout_layout: "); print(out_layout); print("\n"); //  (_1,_2048):(_0,_1)
+      print("\tAtomLayoutSrc{}: "); print(AtomLayoutSrc{}); print("\n"); // (_1,_2048):(_0,_1)
+      print("\tAtomLayoutRef{}: "); print(AtomLayoutRef{}); print("\n"); // (_1,_2048):(_0,_1)
+      print("\tright_inverse(AtomLayoutRef{}): "); print(right_inverse(AtomLayoutRef{})); print("\n"); // _2048:_1
+      print("\tout: "); print(out); print("\n"); // _2048:_1
+      print("in tidfrg_S <<<<<<\n");
     }
 #endif
 
@@ -227,7 +230,7 @@ struct TiledCopy : Copy_Atom
   {
     // Take the thrs/vals that the atom is interested in
     // NOTE: Assumes the AtomNumThr are contiguous and identity within TiledThrID
-    auto atom_layout_TV = zipped_divide(TiledLayout_TV{}, make_shape(AtomNumThr{}, AtomNumVal{}));
+    auto atom_layout_TV = zipped_divide(TiledLayout_TV{}, make_shape(AtomNumThr{}, AtomNumVal{})); //  ((_1,(_32,_64)),(_1,_1)):((_0,(_64,_1)),(_0,_0))
     // ((atom_tid,atom_val),(rest_tid,rest_val)) -> (m,n)
 
     // Transform to the trg layout
@@ -247,12 +250,18 @@ struct TiledCopy : Copy_Atom
 
 #ifdef LP_DEBUG
     if (thread0()) {
-      print("tensor: "); print(tensor); print("\n");
-      print("ref2trg: "); print(ref2trg); print("\n");
-      print("atom_layout_TV: "); print(atom_layout_TV); print("\n");
-      print("TiledLayout_TV{}: "); print(TiledLayout_TV{}); print("\n");
-      print("AtomNumThr{}: "); print(AtomNumThr{}); print("\n");
-      print("AtomNumVal{}: "); print(AtomNumVal{}); print("\n");
+      print("in tile2thrfrg >>>>>\n");
+      print("\ttensor: "); print(tensor); print("\n"); //  ((_64,_32),(_1,_1)):((_32,_1),(_0,_0))
+      print("\tref2trg: "); print(ref2trg); print("\n"); //  (_1,_2048):(_0,_1)
+      print("\tatom_layout_TV: "); print(atom_layout_TV); print("\n");
+      print("\tTiledLayout_TV{}: "); print(TiledLayout_TV{}); print("\n");
+      print("\tAtomNumThr{}: "); print(AtomNumThr{}); print("\n");
+      print("\tAtomNumVal{}: "); print(AtomNumVal{}); print("\n");
+      print("\ttrg_layout_TV: "); print(trg_layout_TV); print("\n");
+      print("\tthrval2mn: "); print(thrval2mn); print("\n");
+      print("\ttv_tensor: "); print(tv_tensor); print("\n");
+      print("in tile2thrfrg <<<<<<\n");
+ 
     }
 #endif
     // Unfold and return
@@ -378,12 +387,16 @@ struct ThrCopy
     //static_assert(sizeof(typename remove_cvref_t<STensor>::value_type) == sizeof(typename TiledCopy::ValType),
     //              "Expected ValType for tiling SrcTensor.");
     auto thr_tensor = make_tensor(static_cast<STensor&&>(stensor).data(), TiledCopy::tidfrg_S(stensor.layout()));
+    auto out = thr_tensor(thr_idx_, _, repeat<rank_v<STensor>>(_));
 #ifdef LP_DEBUG
     if (thread0()) {
       print("partition_S thr_tensor: "); print(thr_tensor); print("\n");
+      print("partition_S thr_idx_: "); print(thr_idx_); print("\n");
+      print("partition_S repeat<rank_v<STensor>>(_): "); print(repeat<rank_v<STensor>>(_)); print("\n");
+      print("out: "); print(out); print("\n");
     }
 #endif
-    return thr_tensor(thr_idx_, _, repeat<rank_v<STensor>>(_));
+    return out;
   }
 
   template <class DTensor>
@@ -518,6 +531,7 @@ make_tiled_copy(Copy_Atom<Args...> const& copy_atom,
   // Take the raked_products to compute the Layout_MN
   // (M,N) -> (thr_idx, val_idx)
   auto layout_mn = raked_product(thr_layout, val_layout);
+  auto logical_product_out = logical_product(thr_layout, val_layout);
   // (thr_idx, val_idx) -> (M,N)
   auto layout_tv = right_inverse(layout_mn).with_shape(make_shape(size(thr_layout), size(val_layout)));
   // Tiler for extracting relevant elements
@@ -526,11 +540,14 @@ make_tiled_copy(Copy_Atom<Args...> const& copy_atom,
 
 #ifdef LP_DEBUG
   if (thread0()) {
-    print("thr_layout: "); print(thr_layout); print("\n");
-    print("val_layout: "); print(val_layout); print("\n");
-    print("layout_mn : "); print(layout_mn);  print("\n");
-    print("layout_tv : "); print(layout_tv);  print("\n");
-    print("tiler     : "); print(tiler);      print("\n");
+    print("in make_tiled_copy >>>>>>\n");
+    print("\tthr_layout: "); print(thr_layout); print("\n");
+    print("\tval_layout: "); print(val_layout); print("\n");
+    print("\tlayout_mn : "); print(layout_mn);  print("\n");
+    print("\tlogical_product_out : "); print(logical_product_out);  print("\n");
+    print("\tlayout_tv : "); print(layout_tv);  print("\n");
+    print("\ttiler     : "); print(tiler);      print("\n");
+    print("in make_tiled_copy <<<<<\n");
   }
 #endif
 

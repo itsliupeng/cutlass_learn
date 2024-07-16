@@ -1416,6 +1416,13 @@ auto
 zipped_divide(Layout<LShape,LStride> const& layout,
               Tiler                  const& tiler)
 {
+  #ifdef LP_DEBUG
+    if (thread0()) {
+      print("layout: "); print(layout); print("\n");
+      print("tiler: "); print(tiler); print("\n");
+      print("logical_divide(layout, tiler)"); print(logical_divide(layout, tiler)); print("\n");
+    }
+  #endif 
   return tile_unzip(logical_divide(layout, tiler), tiler);
 }
 
@@ -1560,9 +1567,21 @@ raked_product(Layout<TShape,TStride> const& block,
 {
   constexpr int R = cute::max(rank_v<TShape>, rank_v<UShape>);
 
-  auto result = logical_product(append<R>(block), append<R>(tiler));
-  auto zip_out = zip(get<1>(result), get<0>(result));
-  auto out = coalesce(zip_out, tuple_repeat<R>(Int<1>{}));
+  auto result = logical_product(append<R>(block), append<R>(tiler)); // ((_32,_8),(_1,_8)):((_8,_1),(_0,_256))
+  auto zip_out = zip(get<1>(result), get<0>(result)); // ((_1,_32),(_8,_8)):((_0,_8),(_256,_1))
+  auto out = coalesce(zip_out, tuple_repeat<R>(Int<1>{})); // (_32,(_8,_8)):(_8,(_256,_1))
+
+#ifdef LP_DEBUG
+  if (thread0()) {
+    print("in rake_product >>>>>\n");
+    print("\tresult: "); print(result); print("\n");
+    print("\tget<1>(result): "); print(get<1>(result)); print("\n");
+    print("\tzip_out: "); print(zip_out); print("\n");
+    print("\ttuple_repeat<R>(Int<1>{}) : "); print(tuple_repeat<R>(Int<1>{}));  print("\n");
+    print("\tout : "); print(out);  print("\n");
+    print("in rake_product <<<<<<\n");
+  }
+#endif
 
   return out;
 }
