@@ -882,10 +882,12 @@ outer_partition(Tensor    && tensor,
 
   #ifdef LP_DEBUG
     if (thread0()) {
-      print("tensor: "); print(tensor); print("\n");
-      print("tiler: "); print(tiler); print("\n");
-      print("tensor_tiled: "); print(tensor_tiled); print("\n");
-      print("R1: "); print(R1); print("\n");
+      print("in outer_partition >>>>>\n");
+      print("\ttensor: "); print(tensor); print("\n");
+      print("\ttiler: "); print(tiler); print("\n");
+      print("\ttensor_tiled: "); print(tensor_tiled); print("\n");
+      print("\tR1: "); print(R1); print("\n");
+      print("in outer_partition <<<<<\n");
     }
   #endif 
 
@@ -956,16 +958,20 @@ local_partition(Tensor                     && tensor,
 {
   static_assert(is_integral<Index>::value);
 
+  auto out = outer_partition(static_cast<Tensor &&>(tensor),
+                             product_each(shape(tile)),
+                             tile.get_flat_coord(index));
 
 #ifdef LP_DEBUG
-    if (thread0()) {
-      print("product_each(shape(tile))"); print(product_each(shape(tile))); print("\n");
-      print("tile.get_flat_coord(index)"); print(product_each(tile.get_flat_coord(index))); print("\n");
-    }
-#endif 
-  return outer_partition(static_cast<Tensor&&>(tensor),
-                         product_each(shape(tile)),
-                         tile.get_flat_coord(index));
+  if (thread0()) {
+    print("in local_partition >>>>>\n");
+    print("\tproduct_each(shape(tile))"); print(product_each(shape(tile))); print("\n");
+    print("\ttile.get_flat_coord(index)"); print(product_each(tile.get_flat_coord(index))); print("\n");
+    print("\nout: "); print(out); print("\n");
+    print("in local_partition <<<<<\n");
+  }
+#endif
+  return out;
 }
 
 // Same as above, but with a projection parameter to strip out unwanted tiling modes for convenience
